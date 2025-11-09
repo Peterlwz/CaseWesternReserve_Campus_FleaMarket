@@ -1,6 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart'; // ✅ 新增：去掉 # 号
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/auth_page.dart';
 import 'pages/post_page.dart';
@@ -8,6 +9,9 @@ import 'pages/verify_success.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ 让 Flutter Web 使用干净路径（去掉 #）
+  usePathUrlStrategy();
 
   await dotenv.load(fileName: "assets/.env");
 
@@ -31,8 +35,10 @@ class CWRUFleaMarketApp extends StatelessWidget {
         primarySwatch: Colors.indigo,
         fontFamily: 'Arial',
       ),
-      home: const HomePage(),
+      // ✅ 根路径 “/” 即为主页，不再是 /main
+      initialRoute: '/',
       routes: {
+        '/': (context) => const HomePage(), // 👈 直接改成根路径
         '/auth': (context) => const Auth(initialLogin: true),
         '/post': (context) => const PostPage(),
         '/verify-success': (context) => const VerifySuccessPage(),

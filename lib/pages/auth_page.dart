@@ -64,104 +64,99 @@ class _AuthState extends State<Auth> {
     }
   }
 
-void _submit() async {
-  final password = _passwordController.text.trim();
+  Future<void> _submit() async {
+    final password = _passwordController.text.trim();
 
-  if (isLogin) {
-    // ---------------------- 登录逻辑 ----------------------
-    final email = _emailController.text.trim();
-    if (email.isEmpty || password.isEmpty) {
-      _showMessage('Please fill in all required fields.');
-      return;
-    }
+    if (isLogin) {
+      // ---------------------- 登录逻辑 ----------------------
+      final email = _emailController.text.trim();
+      if (email.isEmpty || password.isEmpty) {
+        _showMessage('Please fill in all required fields.');
+        return;
+      }
 
-    try {
-      final response = await supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      try {
+        final response = await supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
 
-      if (response.user != null) {
-        if (response.user!.emailConfirmedAt == null) {
-          _showMessage('Please verify your email before logging in.');
-        } else {
-          // 登录成功
-          final userEmail = response.user!.email ?? '';
-          final username = userEmail.split('@').first;
+        if (response.user != null) {
+          if (response.user!.emailConfirmedAt == null) {
+            _showMessage('Please verify your email before logging in.');
+          } else {
+            final userEmail = response.user!.email ?? '';
+            final username = userEmail.split('@').first;
+            _showMessage('Welcome back, $username!');
 
-          _showMessage('Welcome back, $username!');
+            await Future.delayed(const Duration(milliseconds: 800));
 
-          // 延迟一点点显示提示，然后返回主页并带上用户名
-          await Future.delayed(const Duration(milliseconds: 800));
-
-          if (context.mounted) {
-            Navigator.pop(context, username);
+            if (context.mounted) {
+              // ✅ 网页直接跳转到 /main
+              Navigator.pushReplacementNamed(context, '/main');
+            }
           }
+        } else {
+          _showMessage('Login failed. Please try again.');
         }
-      } else {
-        _showMessage('Login failed. Please try again.');
+      } on AuthException catch (e) {
+        _showMessage('Login failed: ${e.message}');
+      } catch (e) {
+        _showMessage('Unexpected error: $e');
       }
-    } on AuthException catch (e) {
-      _showMessage('Login failed: ${e.message}');
-    } catch (e) {
-      _showMessage('Unexpected error: $e');
-    }
-  } else {
-    // ---------------------- 注册逻辑 ----------------------
-    final prefix = _prefixController.text.trim();
-    if (prefix.isEmpty ||
-        password.isEmpty ||
-        _confirmController.text.trim().isEmpty) {
-      _showMessage('Please fill in all required fields.');
-      return;
-    }
-    if (password != _confirmController.text.trim()) {
-      _showMessage('Passwords do not match.');
-      return;
-    }
-    if (prefix.contains('@') || prefix.contains(' ')) {
-      _showMessage('Enter only your CWRU email prefix.');
-      return;
-    }
-
-    final email = '$prefix@case.edu';
-
-    try {
-      // ✅ 先检查 user_profiles 表里是否已有该邮箱
-      final existing = await supabase
-          .from('user_profiles')
-          .select('email')
-          .eq('email', email);
-
-      if (existing.isNotEmpty) {
-        _showMessage('This email is already registered.');
-        return; // 阻止继续注册
+    } else {
+      // ---------------------- 注册逻辑 ----------------------
+      final prefix = _prefixController.text.trim();
+      if (prefix.isEmpty ||
+          password.isEmpty ||
+          _confirmController.text.trim().isEmpty) {
+        _showMessage('Please fill in all required fields.');
+        return;
+      }
+      if (password != _confirmController.text.trim()) {
+        _showMessage('Passwords do not match.');
+        return;
+      }
+      if (prefix.contains('@') || prefix.contains(' ')) {
+        _showMessage('Enter only your CWRU email prefix.');
+        return;
       }
 
-      // ✅ 没有重复，执行注册
-      final response = await supabase.auth.signUp(
-        email: email,
-        password: password,
-        emailRedirectTo:
-            'https://cwru-flea-market.vercel.app/verify-success',
-      );
+      final email = '$prefix@case.edu';
 
-      if (response.user != null) {
-        await _createProfile(); // 注册成功写入 user_profiles
-        _showMessage(
-            'Verification email sent to $email.\nPlease check your CWRU inbox.');
-      } else {
-        _showMessage('Registration failed. Try again.');
+      try {
+        // ✅ 检查重复邮箱
+        final existing = await supabase
+            .from('user_profiles')
+            .select('email')
+            .eq('email', email);
+
+        if (existing.isNotEmpty) {
+          _showMessage('This email is already registered.');
+          return;
+        }
+
+        final response = await supabase.auth.signUp(
+          email: email,
+          password: password,
+          emailRedirectTo:
+              'https://cwrufleamarket.vercel.app/verify-success', // ✅ 改为你的域名
+        );
+
+        if (response.user != null) {
+          await _createProfile();
+          _showMessage(
+              'Verification email sent to $email.\nPlease check your CWRU inbox.');
+        } else {
+          _showMessage('Registration failed. Try again.');
+        }
+      } on AuthException catch (e) {
+        _showMessage('Sign up failed: ${e.message}');
+      } catch (e) {
+        _showMessage('Unexpected error: $e');
       }
-    } on AuthException catch (e) {
-      _showMessage('Sign up failed: ${e.message}');
-    } catch (e) {
-      _showMessage('Unexpected error: $e');
     }
   }
-}
-
-
 
   void _showMessage(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -249,7 +244,8 @@ void _submit() async {
                       suffixText: _caseSuffix,
                       filled: true,
                       fillColor: Colors.grey[100],
-                      helperText: 'Only @case.edu accounts allowed — enter the prefix only.',
+                      helperText:
+                          'Only @case.edu accounts allowed — enter the prefix only.',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
@@ -301,11 +297,6 @@ void _submit() async {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo[100],
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      textStyle: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -347,8 +338,10 @@ void _submit() async {
                 const SizedBox(height: 16),
                 Center(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('← Back to Home', style: TextStyle(color: Colors.indigo)),
+                    onPressed: () =>
+                        Navigator.pushReplacementNamed(context, '/main'),
+                    child: const Text('← Back to Home',
+                        style: TextStyle(color: Colors.indigo)),
                   ),
                 ),
               ],
