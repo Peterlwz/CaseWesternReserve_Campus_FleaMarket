@@ -4,7 +4,7 @@ flutter/ephemeral
 .packages
 .pub-cache/
 .pub/
-build/
+# /build/
 coverage/
 **/doc/api/
 
