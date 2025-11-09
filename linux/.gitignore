@@ -1,0 +1,53 @@
+flutter/ephemeral
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+**/doc/api/
+
+# Android related
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+/android/.gradle/
+/android/local.properties
+
+# iOS related
+ios/.generated/
+ios/Flutter/.last_build_id
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework/
+ios/Flutter/Flutter.podspec
+ios/Flutter/App.framework
+ios/.dart_tool/
+
+# macOS related
+macos/Flutter/ephemeral/
+macos/.dart_tool/
+macos/Pods/
+
+# Web related
+web/.dart_tool/
+web/build/
+
+# VS Code and IntelliJ files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Misc
+.DS_Store
+*.log
+*.swp
+*.tmp
+*.bak
+
+# Environment files
+.env
+*.env
