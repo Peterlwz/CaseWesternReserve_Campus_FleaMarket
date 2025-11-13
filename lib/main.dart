@@ -1,7 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_web_plugins/url_strategy.dart'; // ✅ 新增：去掉 # 号
 import 'package:url_launcher/url_launcher.dart';
 import 'pages/auth_page.dart';
 import 'pages/post_page.dart';
@@ -10,9 +9,8 @@ import 'pages/verify_success.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ 让 Flutter Web 使用干净路径（去掉 #）
-  usePathUrlStrategy();
-  
+  await dotenv.load(fileName: "assets/.env");
+
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
@@ -33,10 +31,8 @@ class CWRUFleaMarketApp extends StatelessWidget {
         primarySwatch: Colors.indigo,
         fontFamily: 'Arial',
       ),
-      // ✅ 根路径 “/” 即为主页，不再是 /main
-      initialRoute: '/',
+      home: const HomePage(),
       routes: {
-        '/': (context) => const HomePage(), // 👈 直接改成根路径
         '/auth': (context) => const Auth(initialLogin: true),
         '/post': (context) => const PostPage(),
         '/verify-success': (context) => const VerifySuccessPage(),
@@ -56,17 +52,17 @@ class _HomePageState extends State<HomePage> {
   final supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _items = [];
 
-  // 👇 新增：当前登录用户名（abc123）
+  // 当前登录用户的用户名（邮箱前缀）
   String? _username;
 
   @override
   void initState() {
     super.initState();
     _loadItems();
-    _loadCurrentUser(); // 如果已经登录了，进来就显示用户名
+    _loadCurrentUser(); // 如果用户已登录则加载用户名
   }
 
-  // 如果当前已有 session，就把邮箱前缀取出来
+  /// 加载当前登录用户
   void _loadCurrentUser() {
     final user = supabase.auth.currentUser;
     if (user != null && user.email != null) {
@@ -94,25 +90,37 @@ class _HomePageState extends State<HomePage> {
   /// 跳转到发布页面
   Future<void> _navigateToPostPage() async {
     final result = await Navigator.pushNamed(context, '/post');
-    // ✅ 如果发布成功，刷新主页
     if (result == true) {
-      _loadItems(); // 发布后刷新主页
+      _loadItems();
     }
   }
 
-  /// 👇 单独写一个去登录页的方法，这样能拿到返回的 username
+  /// 打开登录页
   Future<void> _openAuthPage() async {
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(builder: (context) => const Auth(initialLogin: true)),
     );
 
-    // 如果登录页返回了用户名，就存起来
     if (result != null && result.isNotEmpty) {
       setState(() {
         _username = result;
       });
     }
+  }
+
+  /// 退出登录
+  Future<void> _logout() async {
+    await supabase.auth.signOut();
+    setState(() {
+      _username = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You have been logged out.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   /// 打开 GitHub
@@ -132,70 +140,59 @@ class _HomePageState extends State<HomePage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-      // --- Top Bar ---
-      Container(
-        color: const Color(0xFF1A2C63),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            // 👇 如果用户已登录，显示邮箱 + Log Out
-            if (_username != null) ...[
-              Text(
-                '$_username@case.edu',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  decoration: TextDecoration.underline, // 加下划线
-                  decorationColor: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 16),
-              TextButton(
-                onPressed: () async {
-                  await supabase.auth.signOut(); // 🔥 退出登录
-                  setState(() {
-                    _username = null; // 清空用户名
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('You have been logged out.'),
-                      behavior: SnackBarBehavior.floating,
+            // --- Top Bar ---
+            Container(
+              color: const Color(0xFF1A2C63),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // ✅ 如果登录了，显示邮箱 + Log Out 按钮
+                  if (_username != null) ...[
+                    Text(
+                      '$_username@case.edu',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Colors.white,
+                      ),
                     ),
-                  );
-                },
-                child: const Text(
-                  'Log Out',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    decoration: TextDecoration.underline,
-                    decorationColor: Colors.white,
+                    const SizedBox(width: 16),
+                    TextButton(
+                      onPressed: _logout,
+                      child: const Text(
+                        'Log Out',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                  ],
+                  // GitHub 按钮
+                  TextButton.icon(
+                    onPressed: _launchGitHub,
+                    icon: const Icon(Icons.code, color: Colors.white),
+                    label: const Text(
+                      'GitHub',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 24), // 留点空间再放 GitHub
-            ],
-
-            // 👇 GitHub 按钮保持不变
-            TextButton.icon(
-              onPressed: _launchGitHub,
-              icon: const Icon(Icons.code, color: Colors.white),
-              label: const Text(
-                'GitHub',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-
 
             // --- Hero Section ---
             Container(
               color: const Color(0xFF1A2C63),
-              padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 40),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 60, horizontal: 40),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -215,13 +212,14 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 8),
                         const Text(
                           'The best marketplace for CWRU students — buy, sell, and share safely.',
-                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 16),
                         ),
                         const SizedBox(height: 20),
                         Row(
                           children: [
                             ElevatedButton(
-                              onPressed: _openAuthPage, // 👈 这里改成用我们写的函数
+                              onPressed: _openAuthPage,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blueAccent,
                                 padding: const EdgeInsets.symmetric(
@@ -271,7 +269,8 @@ class _HomePageState extends State<HomePage> {
 
             // --- Search Bar ---
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.black, width: 2),
@@ -309,7 +308,8 @@ class _HomePageState extends State<HomePage> {
                 CategoryCard(icon: Icons.menu_book, label: 'Textbooks'),
                 CategoryCard(icon: Icons.computer, label: 'Electronics'),
                 CategoryCard(icon: Icons.chair, label: 'Furniture'),
-                CategoryCard(icon: Icons.directions_bike, label: 'Bikes & Sports'),
+                CategoryCard(
+                    icon: Icons.directions_bike, label: 'Bikes & Sports'),
               ],
             ),
 
@@ -329,8 +329,8 @@ class _HomePageState extends State<HomePage> {
               Column(
                 children: _items.map((item) {
                   return Card(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
                     elevation: 3,
                     child: ListTile(
                       leading: item['image_url'] != null &&
