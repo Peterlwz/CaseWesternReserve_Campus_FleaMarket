@@ -1,12 +1,7 @@
 {
+  "buildCommand": "if [ ! -d \"flutter\" ]; then git clone https://github.com/flutter/flutter.git -b stable --depth 1; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter build web --release",
   "outputDirectory": "build/web",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "build": {
-    "env": {
-      "SUPABASE_URL": "@supabase-url",
-      "SUPABASE_ANON_KEY": "@supabase-anon-key"
-    }
-  }
+  ]
 }
