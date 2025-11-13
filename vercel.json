@@ -1,10 +1,11 @@
 {
-  "version": 2,
-  "name": "cwru-flea-market",
   "builds": [
     {
-      "src": "web/index.html",
-      "use": "@vercel/static"
+      "src": "pubspec.yaml",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build/web"
+      }
     }
   ],
   "routes": [
