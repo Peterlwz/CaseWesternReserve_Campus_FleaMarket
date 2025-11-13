@@ -1,17 +1,12 @@
 {
   "builds": [
     {
-      "src": "pubspec.yaml",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build/web"
-      }
+      "src": "build/web/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+    { "src": "/(.*)", "dest": "/build/web/$1" }
+  ],
+  "outputDirectory": "build/web"
 }
