@@ -12,9 +12,7 @@ Future<void> main() async {
 
   // ✅ 让 Flutter Web 使用干净路径（去掉 #）
   usePathUrlStrategy();
-
-  await dotenv.load(fileName: "assets/.env");
-
+  
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
